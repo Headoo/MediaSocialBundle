@@ -189,6 +189,7 @@ class TweetManager extends GenericManager
 
         $data['medias'] = array();
         if(isset($tweets->search_metadata->next_results)) {
+            // @TODO: Find a better way to get more tweets than with the next_url (see https://dev.twitter.com/rest/public/timelines)
             $data['next_url'] = $tweets->search_metadata->next_results;
             $this->getMoreTweets($data, $settings);
         }
@@ -240,6 +241,7 @@ class TweetManager extends GenericManager
 
         $data['medias'] = array();
         if(isset($tweets->search_metadata->next_results)) {
+            // @TODO: Find a better way to get more tweets than with the next_url (see https://dev.twitter.com/rest/public/timelines)
             $data['next_url'] = $tweets->search_metadata->next_results;
             $this->getMoreTweets($data, $settings);
         }
