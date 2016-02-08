@@ -18,6 +18,9 @@
     "stof/doctrine-extensions-bundle": "1.1.*@dev",
     "cosenary/instagram": "v2.3"
   },
+  "suggest": {
+    "nelmio/api-doc-bundle": "User-friendly display of this bundle's API"
+  },
   "autoload": {
     "psr-4": {"Headoo\\MediaSocialApiBundle\\": ""}
   },
