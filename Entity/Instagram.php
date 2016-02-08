@@ -107,12 +107,6 @@ class Instagram extends Generic
 
 
     /**
-     * @ORM\OneToMany(targetEntity="Headoo\CoreBundle\Entity\EstablishmentSocialMedia", mappedBy="instagram", cascade={"persist", "remove"})
-     */
-    private $establishmentInstagram;
-
-
-    /**
      * Constructor
      */
     public function __construct()
@@ -120,7 +114,6 @@ class Instagram extends Generic
         $this->instagramMedia = new \Doctrine\Common\Collections\ArrayCollection();
         $this->instagramComment = new \Doctrine\Common\Collections\ArrayCollection();
         $this->tags = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->establishmentInstagrams = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -491,49 +484,5 @@ class Instagram extends Generic
     public function getTags()
     {
         return $this->tags;
-    }
-
-    /**
-     * Add establishmentInstagram
-     *
-     * @param \Headoo\CoreBundle\Entity\EstablishmentSocialMedia $establishmentInstagram
-     *
-     * @return Instagram
-     */
-    public function addEstablishmentInstagram(\Headoo\CoreBundle\Entity\EstablishmentSocialMedia $establishmentInstagram)
-    {
-        $this->establishmentInstagrams[] = $establishmentInstagram;
-
-        return $this;
-    }
-
-    /**
-     * Remove establishmentInstagram
-     *
-     * @param \Headoo\CoreBundle\Entity\EstablishmentSocialMedia $establishmentInstagram
-     */
-    public function removeEstablishmentInstagram(\Headoo\CoreBundle\Entity\EstablishmentSocialMedia $establishmentInstagram)
-    {
-        $this->establishmentInstagrams->removeElement($establishmentInstagram);
-    }
-
-    /**
-     * Get establishmentInstagrams
-     *
-     * @return \Doctrine\Common\Collections\Collection
-     */
-    public function getEstablishmentInstagrams()
-    {
-        return $this->establishmentInstagrams;
-    }
-
-    /**
-     * Get establishmentInstagram
-     *
-     * @return \Doctrine\Common\Collections\Collection
-     */
-    public function getEstablishmentInstagram()
-    {
-        return $this->establishmentInstagram;
     }
 }
