@@ -24,6 +24,11 @@ class TweetManager extends GenericManager
     private $consumer_key;
     private $consumer_secret;
 
+    /**
+     * Maximum count param value for Twitter API
+     */
+    const MAX_TWEET_COUNT = 100;
+
 
     /**
      *
@@ -45,7 +50,7 @@ class TweetManager extends GenericManager
      *
      * @return array $settings
      */
-    private function _settingsConnexion($settings=null)
+    private function _settingsConnection($settings=null)
     {
         $_settings = $settings;
         if(!$_settings)
@@ -61,6 +66,22 @@ class TweetManager extends GenericManager
         return $_settings;
     }
 
+    /**
+     * Sets/checks the max Tweets to get as result
+     *
+     * @param int $number
+     */
+    private function setMaxTweets($number = null) {
+        if($number) {
+            if($number < 0) {
+                $number = 15;
+            }
+            if($number > self::MAX_TWEET_COUNT) {
+                $number = self::MAX_TWEET_COUNT;
+            }
+            $this->numberTweet = $number;
+        }
+    }
 
     /*
      * Search tweet with multiple tags
@@ -75,7 +96,7 @@ class TweetManager extends GenericManager
         $_ar = array();
         foreach($tags as $tag)
         {
-            $_ar[$tag] = self::searchTweetWithTag($tag, $number);
+            $_ar[$tag] = $this->searchTweetWithTag($tag, $number);
         }
 
         return $_ar;
@@ -91,66 +112,99 @@ class TweetManager extends GenericManager
      */
     public function searchTweetWithTag($tag , $number=null, $settings=null)
     {
-        if($number)
-            $this->numberTweet = $number;
+        $this->setMaxTweets($number);
 
-        $_settings = self::_settingsConnexion($settings);
-
-        $getfield = '?q=' . $tag . '&count=' . $number;
+        $getfield = '?q=' . $tag .  '&count=' . $this->numberTweet;
 
         $url = $this -> twitterApiUrl . $this -> searchApi;
 
-        $twitter = new TwitterAPIExchange($_settings);
-        $response = $twitter->setGetfield($getfield)
-            ->buildOauth($url, $this -> requestMethod)
-            ->performRequest();
+        $tweets = $this->getTweetsList($settings, $url, $getfield);
+        if(!$tweets) {
+            return null;
+        }
 
-        $tweets = json_decode($response);
-
-        if(self::_checkErrorsConnections($tweets))
-            return self::_checkErrorsConnections($tweets);
-
-        if(isset($tweets->search_metadata->next_results))
-            $data['next_url']   = $tweets->search_metadata->next_results;
-        $data['medias']     = self::insertMultiple($tweets->statuses);
+        if(isset($tweets->search_metadata->next_results)) {
+            $data['next_url'] = $tweets->search_metadata->next_results;
+        }
+        $data['medias']     = $this->insertMultiple($tweets->statuses);
 
         return $data;
+    }
+
+    /**
+     * Get stats for the specified tag
+     *
+     * @param $tag
+     * @param null $number
+     *
+     * @return array An associative array with the keys tweetsCount, retweetsCount and favoriteCount if all is OK
+     */
+    public function getStatsForTweetWithTag($tag , $number=null) {
+        $data = $this->searchTweetWithURL($tag, $number);
+        if(!is_array($data)) {
+            return $data;
+        }
+
+        if(isset($data['medias']) && !empty($data['medias'])) {
+            return $this->countTweetsData($data['medias']);
+        }
+
+        return array();
     }
 
     /*
      * Search tweet with the specified URL
      *
-     * @param string $tag;
+     * @param string $urlToSearch;
      * @param int $number
      *
      * @return array
      */
-    public function searchTweetWithURl($url , $number=null, $settings=null)
+    public function searchTweetWithURL($urlToSearch , $number=null, $settings=null)
     {
-        if($number)
-            $this->numberTweet = $number;
+        if(mb_strlen($urlToSearch) > 1000) {
+            throw new \InvalidArgumentException('The given URL ("' . $urlToSearch . '") is more than 1000 chars long!');
+        }
+        if(filter_var($urlToSearch, FILTER_VALIDATE_URL, FILTER_FLAG_PATH_REQUIRED)) {
+            throw new \InvalidArgumentException('The given URL ("' . $urlToSearch . '") is invalid!');
+        }
+        $this->setMaxTweets($number);
 
-        $_settings = self::_settingsConnexion($settings);
+        $getfield = '?q=' . $urlToSearch .  '&count=' . $this->numberTweet;
+        $url = $this -> twitterApiUrl . $this -> statusApi;
 
-        $getfield = '?q=' . $url . '&count=' . $number;
+        $tweets = $this->getTweetsList($settings, $url, $getfield);
+        if(!$tweets) {
+            return null;
+        }
 
-        $url = $this -> twitterApiUrl . $this -> searchApi;
-
-        $twitter = new TwitterAPIExchange($_settings);
-        $response = $twitter->setGetfield($getfield)
-            ->buildOauth($url, $this -> requestMethod)
-            ->performRequest();
-
-        $tweets = json_decode($response);
-
-        if(self::_checkErrorsConnections($tweets))
-            return self::_checkErrorsConnections($tweets);
-
-        if(isset($tweets->search_metadata->next_results))
-            $data['next_url']   = $tweets->search_metadata->next_results;
-        $data['medias']     = self::insertMultiple($tweets->statuses);
+        if(isset($tweets->search_metadata->next_results)) {
+            $data['next_url'] = $tweets->search_metadata->next_results;
+        }
+        $data['medias']     = $this->insertMultiple($tweets->statuses);
 
         return $data;
+    }
+
+    /**
+     * Get stats for the specified URL
+     *
+     * @param $url
+     * @param null $number
+     *
+     * @return array An associative array with the keys tweetsCount, retweetsCount and favoriteCount if all is OK
+     */
+    public function getStatsForTweetWithURL($url , $number=null) {
+        $data = $this->searchTweetWithURL($url, $number);
+        if(!is_array($data)) {
+            return $data;
+        }
+
+        if(isset($data['medias']) && !empty($data['medias'])) {
+            return $this->countTweetsData($data['medias']);
+        }
+
+        return array();
     }
 
     /*
@@ -163,30 +217,95 @@ class TweetManager extends GenericManager
     */
     public function searchTweetWithScreenName($screenName , $number=null, $settings=null)
     {
-        if($number)
-            $this->numberTweet = $number;
+        $this->setMaxTweets($number);
 
-        $_settings = self::_settingsConnexion($settings);
-
-        $getfield = '?screen_name=' . $screenName . '&count=' . $number;
+        $getfield = '?screen_name=' . $screenName . '&count=' . $this->numberTweet;
         $url = $this -> twitterApiUrl . $this -> statusApi;
 
-        $twitter = new TwitterAPIExchange($_settings);
-        $response = $twitter->setGetfield($getfield)
-            ->buildOauth($url, $this -> requestMethod)
-            ->performRequest();
+        $tweets = $this->getTweetsList($settings, $url, $getfield);
+        if(!$tweets) {
+            return null;
+        }
 
-        $tweets = json_decode($response);
-
-        if(self::_checkErrorsConnections($tweets))
-            return self::_checkErrorsConnections($tweets);
-
-        $data['next_url']   = $tweets->search_metadata->next_results;
-        $data['medias']     = self::insertMultiple($tweets->statuses);
+        if(isset($tweets->search_metadata->next_results)) {
+            $data['next_url'] = $tweets->search_metadata->next_results;
+        }
+        $data['medias']     = $this->insertMultiple($tweets->statuses);
 
         return $data;
     }
 
+    /**
+     * Get stats for the specified screen name
+     *
+     * @param $screenName
+     * @param null $number
+     *
+     * @return array An associative array with the keys tweetsCount, retweetsCount and favoriteCount if all is OK
+     */
+    public function getStatsForTweetWithScreenName($screenName , $number=null) {
+        $data = $this->searchTweetWithScreenName($screenName, $number);
+        if(!is_array($data)) {
+            return $data;
+        }
+
+        if(isset($data['medias']) && !empty($data['medias'])) {
+            return $this->countTweetsData($data['medias']);
+        }
+
+        return array();
+    }
+
+    /**
+     * Retrieve a list of Tweets from Twitter API
+     * @param array $settings
+     * @param string $requestURL API URL to request
+     * @param string $getField Get part of the URL
+     * @return mixed|null
+     */
+    private function getTweetsList($settings, $requestURL, $getField) {
+        $_settings = $this->_settingsConnection($settings);
+
+        $twitter = new TwitterAPIExchange($_settings);
+        $response = $twitter->setGetfield($getField)
+            ->buildOauth($requestURL, $this -> requestMethod)
+            ->performRequest();
+
+        $tweets = json_decode($response);
+
+        // @TODO: Improve error catching
+        try {
+            $this->_checkErrorsConnections($tweets);
+        } catch(\Exception $e) {
+            return null;
+        }
+
+        return $tweets;
+    }
+
+    /**
+     * Do the counts based on a list of Tweet
+     *
+     * @param $tweets List of tweets to make stats for
+     * @return array An associative array with the keys tweetsCount, retweetsCount and favoriteCount
+     */
+    private function countTweetsData($tweets) {
+        $tweetsCount = 0;
+        $retweetsCount = 0;
+        $favoriteCount = 0;
+        /** @var Tweet $tweet */
+        foreach($tweets as $tweet) {
+            $tweetsCount++;
+            $retweetsCount += $tweet->getRetweetCount();
+            $favoriteCount += $tweet->getFavoriteCount();
+        }
+
+        return array(
+            'tweetsCount' => $tweetsCount,
+            'retweetsCount' => $retweetsCount,
+            'favoriteCount' => $favoriteCount,
+        );
+    }
 
 
     /**
@@ -196,13 +315,13 @@ class TweetManager extends GenericManager
      *
      * @return array $tweets
      */
-    public function insertMultiple(array $tweets)
+    private function insertMultiple(array $tweets)
     {
         $_tweets = array();
 
         foreach($tweets as $tweet)
         {
-            $_tweets[] = self::insert($tweet);
+            $_tweets[] = $this->insert($tweet);
         }
 
         return $_tweets;
@@ -215,22 +334,22 @@ class TweetManager extends GenericManager
      *
      * @return Tweet
      */
-    public function insert($_tweet)
+    private function insert($_tweet)
     {
         $this->_fieldsMappedToDB = array('tweetId'=>'id', 'text'=>'text', 'source'=>'source', 'truncated'=>'truncated', 'favorited'=>'favorited', 'retweetet'=>'retweeted', 'lang' => 'lang', 'retweetCount'=>'retweet_count', 'favoriteCount'=>'favorite_count');
         $this->entityClass = 'Tweet';
 
-        $tweet = self::isEntityExists($_tweet->id, 'TweetId');
+        $tweet = $this->isEntityExists($_tweet->id, 'TweetId');
 
         $tweet->setCreatedAt(new \DateTime(date( 'Y-m-d H:i:s', str_replace("+0000",'',strtotime($_tweet->created_at))) ));
-        $tweet = self::mapObjectToEntity($tweet, $_tweet);
+        $tweet = $this->mapObjectToEntity($tweet, $_tweet);
 
         $user = $this->_createUser($_tweet->user);
         $tweet->setUser($user);
 
         if(isset($_tweet->retweeted_status))
         {
-            $fromRetweet = self::insert($_tweet->retweeted_status);
+            $fromRetweet = $this->insert($_tweet->retweeted_status);
             $tweet->setRetweet($fromRetweet);
         }
 
@@ -267,8 +386,8 @@ class TweetManager extends GenericManager
                                             'ProfileImageUrl'=>'profile_image_url');
 
         $this->entityClass          = 'Users';
-        $twitterUser                = self::isEntityExists($_user->id, 'UserId');
-        $twitterUser                = self::mapObjectToEntity($twitterUser, $_user);
+        $twitterUser                = $this->isEntityExists($_user->id, 'UserId');
+        $twitterUser                = $this->mapObjectToEntity($twitterUser, $_user);
 
         $twitterUser->setCreatedAt(new \DateTime(date( 'Y-m-d H:i:s', str_replace("+0000",'',strtotime($_user->created_at))) ));
 
@@ -281,9 +400,9 @@ class TweetManager extends GenericManager
     /**
      * Create Media
      *
-     * @param array $_medias;
+     * @param array $_medias Array of media ids;
      *
-     * @return
+     * @return true
      */
     private function _createMedia($_medias, $tweet)
     {
@@ -292,9 +411,9 @@ class TweetManager extends GenericManager
 
         foreach($_medias as $_media)
         {
-            $media = self::isEntityExists($_media->id, 'mediaId');
+            $media = $this->isEntityExists($_media->id, 'mediaId');
 
-            $media = self::mapObjectToEntity($media, $_media);
+            $media = $this->mapObjectToEntity($media, $_media);
 
             $media->setTweet($tweet);
 
@@ -303,14 +422,15 @@ class TweetManager extends GenericManager
 
         $this->em->flush();
 
+        return true;
     }
 
     /**
      * Create Tags
      *
-     * @param array $_tags;
+     * @param array $_tags Array of tags;
      *
-     * @return nothing
+     * @return true
      */
     private function _createTags($_tags, $tweet)
     {
@@ -319,8 +439,8 @@ class TweetManager extends GenericManager
 
         foreach($_tags as $_tag)
         {
-            $tag = self::isEntityExists($_tag->text, 'text');
-            $tag = self::mapObjectToEntity($tag, $_tag);
+            $tag = $this->isEntityExists($_tag->text, 'text');
+            $tag = $this->mapObjectToEntity($tag, $_tag);
 
             $tweet->addTag($tag);
 
@@ -332,21 +452,23 @@ class TweetManager extends GenericManager
         }
 
         $this->em->flush();
+
+        return true;
     }
 
 
     /**
      * Create a Place on table twitter
      *
-     * @return Place
+     * @return TweetPlace
      */
     private function _createPlace($_place, $tweet)
     {
         $this->entityClass = 'TweetPlace';
         $this->_fieldsMappedToDB = array('placeId'=>'id','url'=>'url','PlaceType'=>'place_type','name'=>'name', 'fullName'=>'full_name','countryCode'=>'country_code','country' => 'country');
 
-        $place = self::isEntityExists($_place->id, 'PlaceId');
-        $place = self::mapObjectToEntity($place, $_place);
+        $place = $this->isEntityExists($_place->id, 'PlaceId');
+        $place = $this->mapObjectToEntity($place, $_place);
 
         $place->setTweet($tweet);
 
@@ -359,28 +481,29 @@ class TweetManager extends GenericManager
     /**
      * Check if errors for connections
      *
-     * @return Error
+     * @param null $data
+     * @throws \Exception|\InvalidArgumentException
      */
     private function _checkErrorsConnections($data = null)
     {
         if(!$this->oauth_access_token)
-            return 'No Twitter Key  @t headoo_media_social_api.twitter_access.oauth_access_token in your config.yml';
+            throw new \InvalidArgumentException('No Twitter Key  @t headoo_media_social_api.twitter_access.oauth_access_token in your config.yml');
 
         if(!$this->oauth_access_token_secret)
-            return 'No Twitter Key  @t headoo_media_social_api.twitter_access.oauth_access_token_secret in your config.yml';
+            throw new \InvalidArgumentException('No Twitter Key  @t headoo_media_social_api.twitter_access.oauth_access_token_secret in your config.yml');
 
         if(!$this->consumer_key)
-            return 'No Twitter Key  @t headoo_media_social_api.twitter_access.consumer_key in your config.yml';
+            throw new \InvalidArgumentException('No Twitter Key  @t headoo_media_social_api.twitter_access.consumer_key in your config.yml');
 
         if(!$this->consumer_secret)
-            return 'No Twitter Key  @t headoo_media_social_api.twitter_access.consumer_secret in your config.yml';
+            throw new \InvalidArgumentException('No Twitter Key  @t headoo_media_social_api.twitter_access.consumer_secret in your config.yml');
 
         if($data && isset($data->errors) && count($data->errors) > 0)
-            return 'code error:' . $data->errors[0]->code. ':' . $data->errors[0]->message;
+            throw new \Exception('code error:' . $data->errors[0]->code. ':' . $data->errors[0]->message);
     }
 
 
-    /*
+    /**
      * Search tweet with url next !
      *
      * @param string $tag;
@@ -390,7 +513,7 @@ class TweetManager extends GenericManager
      */
     public function insertFromURL($url, $settings=null)
     {
-        $_settings = self::_settingsConnexion($settings);
+        $_settings = $this->_settingsConnection($settings);
 
         $getfield = $url;
 
@@ -403,12 +526,17 @@ class TweetManager extends GenericManager
 
         $tweets = json_decode($response);
 
-        if(self::_checkErrorsConnections($tweets))
-            return self::_checkErrorsConnections($tweets);
+        // @TODO: Improve error catching
+        try {
+            $this->_checkErrorsConnections($tweets);
+        } catch(\Exception $e) {
+            return null;
+        }
 
-        if(isset($tweets->search_metadata->next_results))
+        if(isset($tweets->search_metadata->next_results)) {
             $data['next_url']   = $tweets->search_metadata->next_results;
-        $data['medias']     = self::insertMultiple($tweets->statuses);
+        }
+        $data['medias']     = $this->insertMultiple($tweets->statuses);
 
         return $data;
     }

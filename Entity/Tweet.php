@@ -102,20 +102,18 @@ class Tweet extends Generic
     private $tags;
 
     /**
-     * @var string
+     * @var integer
      *
      * @ORM\Column(name="retweet_count", type="integer", length=3, nullable=false)
      */
     private $retweetCount;
 
     /**
-     * @var string
+     * @var integer
      *
      * @ORM\Column(name="favorite_count", type="integer", length=3, nullable=false)
      */
     private $favoriteCount;
-
-
 
     /**
      * @ORM\OneToMany(targetEntity="Tweet", mappedBy="retweet")
@@ -571,7 +569,7 @@ class Tweet extends Generic
      */
     public function setRetweetCount($retweetCount)
     {
-        $this->retweetCount = $retweetCount;
+        $this->retweetCount = (int)$retweetCount;
 
         return $this;
     }
@@ -595,7 +593,7 @@ class Tweet extends Generic
      */
     public function setFavoriteCount($favoriteCount)
     {
-        $this->favoriteCount = $favoriteCount;
+        $this->favoriteCount = (int)$favoriteCount;
 
         return $this;
     }

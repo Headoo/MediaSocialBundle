@@ -80,9 +80,10 @@ abstract class GenericManager
         //We create function for search in DB
         $searchfunction   = 'findOneBy' . ucfirst($searchField);
         $entity = $this->getRepository()->$searchfunction($id);
-        if($entity)
+        if($entity) {
             return $entity;
-        else{
+        }
+        else {
             $_class= $this->entityBundleName . $this->entityClass;
             $entity = new $_class();
         }
