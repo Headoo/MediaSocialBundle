@@ -1,0 +1,3 @@
+media_social_bundle:
+    resource: "@HeadooMediaSocialApiBundle/Controller/"
+    type:     annotation
