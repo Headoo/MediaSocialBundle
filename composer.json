@@ -1,9 +1,9 @@
 {
   "name": "headoo/media-social-api-bundle",
   "type": "symfony-bundle",
-  "description": "Bundle for social api",
+  "description": "Bundle for social api (Twitter and Instagram)",
   "homepage": "https://github.com/Headoo/MediaSocialApiBundle",
-  "keywords": ["twitter", "api", "bundle"],
+  "keywords": ["twitter", "instagram", "api", "bundle"],
   "license": "MIT",
   "authors": [
     {
@@ -12,10 +12,10 @@
     }
   ],
   "require": {
-    "php": ">=5.3",
+    "php": ">=5.3.9",
     "symfony/framework-bundle": "2.*",
-    "joseiogr/twitter-api-php": "dev-master",
     "stof/doctrine-extensions-bundle": "1.1.*@dev",
+    "joseiogr/twitter-api-php": "dev-master",
     "cosenary/instagram": "v2.3"
   },
   "suggest": {
