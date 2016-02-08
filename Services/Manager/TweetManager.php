@@ -18,6 +18,7 @@ class TweetManager extends GenericManager
     private $statusApi          = 'statuses/user_timeline.json';
     private $requestMethod      = 'GET';
     private $numberTweet        = 20;
+    private $currentApiUrl;
 
     private $oauth_access_token;
     private $oauth_access_token_secret;
@@ -28,6 +29,10 @@ class TweetManager extends GenericManager
      * Maximum count param value for Twitter API
      */
     const MAX_TWEET_COUNT = 100;
+    /**
+     * Maximum calls to do to next page for a search
+     */
+    const MAX_NEXT_PAGE_COUNT = 6;
 
 
     /**
@@ -116,17 +121,19 @@ class TweetManager extends GenericManager
 
         $getfield = '?q=' . $tag .  '&count=' . $this->numberTweet;
 
-        $url = $this -> twitterApiUrl . $this -> searchApi;
+        $this->currentApiUrl = $this -> twitterApiUrl . $this -> searchApi;
 
-        $tweets = $this->getTweetsList($settings, $url, $getfield);
+        $tweets = $this->getTweetsList($settings, $getfield);
         if(!$tweets) {
             return null;
         }
 
+        $data['medias'] = array();
         if(isset($tweets->search_metadata->next_results)) {
             $data['next_url'] = $tweets->search_metadata->next_results;
+            $this->getMoreTweets($data, $settings);
         }
-        $data['medias']     = $this->insertMultiple($tweets->statuses);
+        $data['medias'] = array_merge($data['medias'], $this->insertMultiple($tweets->statuses));
 
         return $data;
     }
@@ -171,17 +178,21 @@ class TweetManager extends GenericManager
         $this->setMaxTweets($number);
 
         $getfield = '?q=' . $urlToSearch .  '&count=' . $this->numberTweet;
-        $url = $this -> twitterApiUrl . $this -> statusApi;
 
-        $tweets = $this->getTweetsList($settings, $url, $getfield);
+        $this->currentApiUrl = $this -> twitterApiUrl . $this -> searchApi;
+
+        $tweets = $this->getTweetsList($settings, $getfield);
+
         if(!$tweets) {
             return null;
         }
 
+        $data['medias'] = array();
         if(isset($tweets->search_metadata->next_results)) {
             $data['next_url'] = $tweets->search_metadata->next_results;
+            $this->getMoreTweets($data, $settings);
         }
-        $data['medias']     = $this->insertMultiple($tweets->statuses);
+        $data['medias'] = array_merge($data['medias'], $this->insertMultiple($tweets->statuses));
 
         return $data;
     }
@@ -220,17 +231,19 @@ class TweetManager extends GenericManager
         $this->setMaxTweets($number);
 
         $getfield = '?screen_name=' . $screenName . '&count=' . $this->numberTweet;
-        $url = $this -> twitterApiUrl . $this -> statusApi;
+        $this->currentApiUrl = $this -> twitterApiUrl . $this -> statusApi;
 
-        $tweets = $this->getTweetsList($settings, $url, $getfield);
+        $tweets = $this->getTweetsList($settings, $getfield);
         if(!$tweets) {
             return null;
         }
 
+        $data['medias'] = array();
         if(isset($tweets->search_metadata->next_results)) {
             $data['next_url'] = $tweets->search_metadata->next_results;
+            $this->getMoreTweets($data, $settings);
         }
-        $data['medias']     = $this->insertMultiple($tweets->statuses);
+        $data['medias'] = array_merge($data['medias'], $this->insertMultiple($tweets->statuses));
 
         return $data;
     }
@@ -259,16 +272,18 @@ class TweetManager extends GenericManager
     /**
      * Retrieve a list of Tweets from Twitter API
      * @param array $settings
-     * @param string $requestURL API URL to request
      * @param string $getField Get part of the URL
      * @return mixed|null
      */
-    private function getTweetsList($settings, $requestURL, $getField) {
+    private function getTweetsList($settings, $getField) {
+        if(empty($this->currentApiUrl)) {
+            return null;
+        }
         $_settings = $this->_settingsConnection($settings);
 
         $twitter = new TwitterAPIExchange($_settings);
         $response = $twitter->setGetfield($getField)
-            ->buildOauth($requestURL, $this -> requestMethod)
+            ->buildOauth($this->currentApiUrl, $this -> requestMethod)
             ->performRequest();
 
         $tweets = json_decode($response);
@@ -281,6 +296,22 @@ class TweetManager extends GenericManager
         }
 
         return $tweets;
+    }
+
+    /**
+     * Get more tweets by cycling through the search "next_url" query param
+     * @param $data \DateInterval
+     * @param $settings
+     */
+    private function getMoreTweets(&$data, $settings) {
+        $nextPageCount = 0;
+        do {
+            $retrievedData = $this->insertFromURL($data['next_url'], $settings);
+            $data['medias'] = array_merge($data['medias'], $retrievedData['medias']);
+            $data['next_url'] = (isset($retrievedData['next_url']) && !empty($retrievedData['next_url'])) ? $retrievedData['next_url'] : null;
+            $nextPageCount++;
+            $morePagesAvailable = isset($data['next_url']) && !empty($data['next_url']);
+        } while($morePagesAvailable && $nextPageCount <= self::MAX_NEXT_PAGE_COUNT);
     }
 
     /**
@@ -363,7 +394,7 @@ class TweetManager extends GenericManager
             $this->_createTags($_tweet->entities->hashtags, $tweet);
 
         if($_tweet->place)
-            $place = $this->_createPlace($_tweet->place, $tweet);
+            $this->_createPlace($_tweet->place, $tweet);
 
         $this->em->flush();
 
@@ -412,7 +443,6 @@ class TweetManager extends GenericManager
         foreach($_medias as $_media)
         {
             $media = $this->isEntityExists($_media->id, 'mediaId');
-
             $media = $this->mapObjectToEntity($media, $_media);
 
             $media->setTweet($tweet);
@@ -506,37 +536,21 @@ class TweetManager extends GenericManager
     /**
      * Search tweet with url next !
      *
-     * @param string $tag;
-     * @param int $number
+     * @param string $url;
+     * @param $settings
      *
      * @return array
      */
     public function insertFromURL($url, $settings=null)
     {
-        $_settings = $this->_settingsConnection($settings);
-
         $getfield = $url;
 
-        $url = $this -> twitterApiUrl . $this -> searchApi;
-
-        $twitter = new TwitterAPIExchange($_settings);
-        $response = $twitter->setGetfield($getfield)
-            ->buildOauth($url, $this -> requestMethod)
-            ->performRequest();
-
-        $tweets = json_decode($response);
-
-        // @TODO: Improve error catching
-        try {
-            $this->_checkErrorsConnections($tweets);
-        } catch(\Exception $e) {
-            return null;
-        }
+        $tweets = $this->getTweetsList($settings, $getfield);
 
         if(isset($tweets->search_metadata->next_results)) {
-            $data['next_url']   = $tweets->search_metadata->next_results;
+            $data['next_url'] = $tweets->search_metadata->next_results;
         }
-        $data['medias']     = $this->insertMultiple($tweets->statuses);
+        $data['medias'] = isset($tweets->statuses) ? $this->insertMultiple($tweets->statuses) : array();
 
         return $data;
     }
