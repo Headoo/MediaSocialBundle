@@ -1,0 +1,33 @@
+TweetTags:
+    type: entity
+    table: tweet_tags
+    indexes:
+        tweet_id:
+            columns:
+                - tweet_id
+        tag:
+            columns:
+                - tag
+    id:
+        id:
+            type: integer
+            nullable: false
+            unsigned: true
+            comment: ''
+            id: true
+            generator:
+                strategy: IDENTITY
+    fields:
+        tweetId:
+            type: bigint
+            nullable: false
+            unsigned: true
+            comment: ''
+            column: tweet_id
+        tag:
+            type: string
+            nullable: false
+            length: 100
+            fixed: false
+            comment: ''
+    lifecycleCallbacks: {  }

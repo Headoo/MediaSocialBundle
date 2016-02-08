@@ -1,0 +1,88 @@
+Tweets:
+    type: entity
+    table: tweets
+    indexes:
+        created_at:
+            columns:
+                - created_at
+        user_id:
+            columns:
+                - user_id
+        screen_name:
+            columns:
+                - screen_name
+        name:
+            columns:
+                - name
+        tweet_text:
+            columns:
+                - tweet_text
+    id:
+        tweetId:
+            type: bigint
+            nullable: false
+            unsigned: true
+            comment: ''
+            id: true
+            column: tweet_id
+            generator:
+                strategy: IDENTITY
+    fields:
+        tweetText:
+            type: string
+            nullable: false
+            length: 160
+            fixed: false
+            comment: ''
+            column: tweet_text
+        createdAt:
+            type: datetime
+            nullable: false
+            comment: ''
+            column: created_at
+        geoLat:
+            type: decimal
+            nullable: true
+            precision: 10
+            scale: 5
+            comment: ''
+            column: geo_lat
+        geoLong:
+            type: decimal
+            nullable: true
+            precision: 10
+            scale: 5
+            comment: ''
+            column: geo_long
+        userId:
+            type: bigint
+            nullable: false
+            unsigned: true
+            comment: ''
+            column: user_id
+        screenName:
+            type: string
+            nullable: false
+            length: 20
+            fixed: true
+            comment: ''
+            column: screen_name
+        name:
+            type: string
+            nullable: true
+            length: 20
+            fixed: false
+            comment: ''
+        profileImageUrl:
+            type: string
+            nullable: true
+            length: 200
+            fixed: false
+            comment: ''
+            column: profile_image_url
+        isRt:
+            type: boolean
+            nullable: false
+            comment: ''
+            column: is_rt
+    lifecycleCallbacks: {  }
