@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * TweetMediaUrls
  *
- * @ORM\Table(name="instagram_captions")
+ * @ORM\Table(name="instagram_captions", indexes={@ORM\Index(name="caption_id", columns={"caption_id"})})
  * @ORM\Entity
  */
 class InstagramCaption extends Generic

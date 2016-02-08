@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Instagram Tag
  *
- * @ORM\Table(name="instagram_comments")
+ * @ORM\Table(name="instagram_comments", indexes={@ORM\Index(name="comment_id", columns={"comment_id"})})
  * @ORM\Entity
  */
 class InstagramComment extends Generic

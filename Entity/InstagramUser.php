@@ -8,7 +8,7 @@ use Gedmo\Mapping\Annotation as Gedmo;
 /**
  * Instagram User
  *
- * @ORM\Table(name="instagram_users")
+ * @ORM\Table(name="instagram_users", indexes={@ORM\Index(name="user_id", columns={"user_id"})})
  * @ORM\Entity
  */
 class InstagramUser extends Generic

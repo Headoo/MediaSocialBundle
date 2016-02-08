@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * TweetMediaUrls
  *
- * @ORM\Table(name="twitter_tweet_media_urls")
+ * @ORM\Table(name="twitter_tweet_media_urls", indexes={@ORM\Index(name="media_id", columns={"media_id"})})
  * @ORM\Entity
  */
 class TweetMediaUrls extends Generic

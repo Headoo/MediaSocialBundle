@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Tweets
  *
- * @ORM\Table(name="twitter_tweets", indexes={@ORM\Index(name="created_at", columns={"created_at"})})
+ * @ORM\Table(name="twitter_tweets", indexes={@ORM\Index(name="created_at", columns={"created_at"}),@ORM\Index(name="tweet_id", columns={"tweet_id"})})
  * @ORM\Entity
  */
 class Tweet extends Generic
