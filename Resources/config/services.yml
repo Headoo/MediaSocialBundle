@@ -2,13 +2,13 @@ services:
   headoo.medias.manager:
           class: Headoo\MediaSocialApiBundle\Services\Manager\SocialMediasManager
           arguments:
-            - @headoo.twitter.tweet_manager
-            - @headoo.instagram.manager
+            - "@headoo.twitter.tweet_manager"
+            - "@headoo.instagram.manager"
 
   headoo.twitter.tweet_manager:
           class: Headoo\MediaSocialApiBundle\Services\Manager\TweetManager
           arguments:
-            - @doctrine.orm.entity_manager
+            - "@doctrine.orm.entity_manager"
             - %headoo_media_social_api.twitter_access.oauth_access_token%
             - %headoo_media_social_api.twitter_access.oauth_access_token_secret%
             - %headoo_media_social_api.twitter_access.consumer_key%
@@ -17,5 +17,5 @@ services:
   headoo.instagram.manager:
           class: Headoo\MediaSocialApiBundle\Services\Manager\InstagramManager
           arguments:
-            - @doctrine.orm.entity_manager
+            - "@doctrine.orm.entity_manager"
             - %headoo_media_social_api.instagram_access.access_token%
