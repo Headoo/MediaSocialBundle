@@ -13,8 +13,8 @@
   ],
   "require": {
     "php": ">=5.3.9",
-    "symfony/framework-bundle": "dev-master",
-    "stof/doctrine-extensions-bundle": "1.1.*@dev",
+    "symfony/framework-bundle": "~2 || ~3",
+    "stof/doctrine-extensions-bundle": "dev-master",
     "j7mbo/twitter-api-php": "1.0.x-dev",
     "cosenary/instagram": "v2.3"
   },
