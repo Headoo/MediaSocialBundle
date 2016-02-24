@@ -4,7 +4,7 @@ namespace Headoo\MediaSocialApiBundle\Services\Manager;
 
 use Doctrine\ORM\EntityManager;
 use Headoo\MediaSocialApiBundle\Entity\Tweet;
-use JoseiOgr\TwitterAPIPHP\Connector\TwitterAPIExchange;
+use TwitterAPIExchange;
 
 class TweetManager extends GenericManager
 {
