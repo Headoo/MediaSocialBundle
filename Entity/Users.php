@@ -121,7 +121,6 @@ class Users extends Generic
      */
     private $listedCount;
 
-
     /**
      * Get userId
      *
@@ -391,6 +390,8 @@ class Users extends Generic
     public function __construct()
     {
         $this->tweets = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->importedAt =  new \DateTime();
+        $this->updatedAt =  new \DateTime();
     }
 
     /**
