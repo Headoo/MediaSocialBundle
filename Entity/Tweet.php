@@ -91,7 +91,7 @@ class Tweet extends Generic
     /**
      * @var string
      *
-     * @ORM\Column(name="lang", type="string", length=2, nullable=true)
+     * @ORM\Column(name="lang", type="string", length=3, nullable=true)
      */
     private $lang;
 
