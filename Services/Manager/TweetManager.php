@@ -172,7 +172,7 @@ class TweetManager extends GenericManager
         if(mb_strlen($urlToSearch) > 1000) {
             throw new \InvalidArgumentException('The given URL ("' . $urlToSearch . '") is more than 1000 chars long!');
         }
-        if(filter_var($urlToSearch, FILTER_VALIDATE_URL, FILTER_FLAG_PATH_REQUIRED)) {
+        if(filter_var($urlToSearch, FILTER_VALIDATE_URL)) {
             throw new \InvalidArgumentException('The given URL ("' . $urlToSearch . '") is invalid!');
         }
         $this->setMaxTweets($number);
