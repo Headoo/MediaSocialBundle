@@ -26,11 +26,9 @@ class InstagramManager extends GenericManager
      *
      * {@inheritdoc }
      */
-    public function __construct(EntityManager $em, $access_token)
+    public function __construct($access_token)
     {
-        parent::__construct($em);
-
-        $this -> access_token = $access_token;
+        $this->access_token = $access_token;
     }
 
 
