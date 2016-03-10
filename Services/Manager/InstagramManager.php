@@ -28,6 +28,12 @@ class InstagramManager extends GenericManager
      */
     public function __construct($access_token)
     {
+        foreach (func_get_args() as $parameter) {
+            if (!is_string($parameter) or empty($parameter)) {
+                throw new \InvalidArgumentException('The given parameter ("' . $parameter . '") ain’t no string');
+            }
+        }
+
         $this->access_token = $access_token;
     }
 

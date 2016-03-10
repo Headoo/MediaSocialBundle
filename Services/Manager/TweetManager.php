@@ -42,6 +42,12 @@ class TweetManager extends GenericManager
     public function __construct($oauth_access_token, $oauth_access_token_secret, $consumer_key, $consumer_secret)
     {
 
+        foreach (func_get_args() as $parameter) {
+            if (!is_string($parameter) or empty($parameter)) {
+                throw new \InvalidArgumentException('The given parameter ("' . $parameter . '") ain’t no string');
+            }
+        }
+
         $this->oauth_access_token          = $oauth_access_token;
         $this->oauth_access_token_secret   = $oauth_access_token_secret;
         $this->consumer_key                = $consumer_key;
