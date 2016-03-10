@@ -16,7 +16,8 @@
     "symfony/framework-bundle": ">=2.6 || ~3",
     "stof/doctrine-extensions-bundle": "dev-master",
     "j7mbo/twitter-api-php": "1.0.x-dev",
-    "cosenary/instagram": "v2.3"
+    "cosenary/instagram": "v2.3",
+    "symfony/var-dumper": "^3.0"
   },
   "suggest": {
     "nelmio/api-doc-bundle": "User-friendly display of this bundle's API"

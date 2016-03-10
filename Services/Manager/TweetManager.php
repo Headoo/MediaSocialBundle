@@ -39,9 +39,8 @@ class TweetManager extends GenericManager
      *
      * {@inheritdoc }
      */
-    public function __construct(EntityManager $em, $oauth_access_token, $oauth_access_token_secret, $consumer_key, $consumer_secret)
+    public function __construct($oauth_access_token, $oauth_access_token_secret, $consumer_key, $consumer_secret)
     {
-        parent::__construct($em);
 
         $this->oauth_access_token          = $oauth_access_token;
         $this->oauth_access_token_secret   = $oauth_access_token_secret;
@@ -71,6 +70,11 @@ class TweetManager extends GenericManager
         return $_settings;
     }
 
+    public function testSettingsConnectionReturn(){
+        
+        return $this->_settingsConnection();
+    }
+    
     /**
      * Sets/checks the max Tweets to get as result
      *
@@ -121,7 +125,7 @@ class TweetManager extends GenericManager
 
         $getfield = '?q=' . $tag .  '&count=' . $this->numberTweet;
 
-        $this->currentApiUrl = $this -> twitterApiUrl . $this -> searchApi;
+        $this->currentApiUrl = $this->twitterApiUrl . $this->searchApi;
 
         $tweets = $this->getTweetsList($settings, $getfield);
         if(!$tweets) {
@@ -172,16 +176,19 @@ class TweetManager extends GenericManager
         if(mb_strlen($urlToSearch) > 1000) {
             throw new \InvalidArgumentException('The given URL ("' . $urlToSearch . '") is more than 1000 chars long!');
         }
-        if(filter_var($urlToSearch, FILTER_VALIDATE_URL)) {
+        if(!filter_var($urlToSearch, FILTER_VALIDATE_URL)) {
             throw new \InvalidArgumentException('The given URL ("' . $urlToSearch . '") is invalid!');
         }
         $this->setMaxTweets($number);
 
         $getfield = '?q=' . $urlToSearch .  '&count=' . $this->numberTweet;
 
-        $this->currentApiUrl = $this -> twitterApiUrl . $this -> searchApi;
+        $this->currentApiUrl = $this->twitterApiUrl.$this->searchApi;
 
         $tweets = $this->getTweetsList($settings, $getfield);
+        return $tweets;
+
+        // below Bad code
 
         if(!$tweets) {
             return null;
@@ -193,7 +200,7 @@ class TweetManager extends GenericManager
             $data['next_url'] = $tweets->search_metadata->next_results;
             $this->getMoreTweets($data, $settings);
         }
-        $data['medias'] = array_merge($data['medias'], $this->insertMultiple($tweets->statuses));
+
 
         return $data;
     }
@@ -208,15 +215,18 @@ class TweetManager extends GenericManager
      */
     public function getStatsForTweetWithURL($url , $number=null) {
         $data = $this->searchTweetWithURL($url, $number);
-        if(!is_array($data)) {
-            return $data;
+
+        if(isset($data['statuses']) && !empty($data['statuses'])) {
+            return $this->countTweetsData($data['statuses']);
         }
 
-        if(isset($data['medias']) && !empty($data['medias'])) {
-            return $this->countTweetsData($data['medias']);
-        }
+        return [
+            'tweetsCount' => 0,
+            'retweetsCount' => 0,
+            'favoriteCount' => 0,
+        ];
 
-        return array();
+;
     }
 
     /*
@@ -278,24 +288,15 @@ class TweetManager extends GenericManager
      * @return mixed|null
      */
     private function getTweetsList($settings, $getField) {
-        if(empty($this->currentApiUrl)) {
-            return null;
-        }
+        
         $_settings = $this->_settingsConnection($settings);
 
         $twitter = new TwitterAPIExchange($_settings);
         $response = $twitter->setGetfield($getField)
-            ->buildOauth($this->currentApiUrl, $this -> requestMethod)
+            ->buildOauth($this->twitterApiUrl.$this->searchApi, $this->requestMethod)
             ->performRequest();
 
-        $tweets = json_decode($response);
-
-        // @TODO: Improve error catching
-        try {
-            $this->_checkErrorsConnections($tweets);
-        } catch(\Exception $e) {
-            return null;
-        }
+        $tweets = json_decode($response, true);
 
         return $tweets;
     }
@@ -306,6 +307,8 @@ class TweetManager extends GenericManager
      * @param $settings
      */
     private function getMoreTweets(&$data, $settings) {
+        // TODO : éventuellement implémenté possibilité d'aller voir les pages suivantes.
+        return;
         $nextPageCount = 0;
         do {
             $retrievedData = $this->insertFromURL($data['next_url'], $settings);
@@ -329,8 +332,9 @@ class TweetManager extends GenericManager
         /** @var Tweet $tweet */
         foreach($tweets as $tweet) {
             $tweetsCount++;
-            $retweetsCount += $tweet->getRetweetCount();
-            $favoriteCount += $tweet->getFavoriteCount();
+//TODO
+//            $retweetsCount += $tweet->getRetweetCount();
+//            $favoriteCount += $tweet->getFavoriteCount();
         }
 
         return array(
@@ -339,201 +343,6 @@ class TweetManager extends GenericManager
             'favoriteCount' => $favoriteCount,
         );
     }
-
-
-    /**
-     * Insert multiple tweets
-     *
-     * @param array $tweets;
-     *
-     * @return array $tweets
-     */
-    private function insertMultiple(array $tweets)
-    {
-        $_tweets = array();
-
-        foreach($tweets as $tweet)
-        {
-            $_tweets[] = $this->insert($tweet);
-        }
-
-        return $_tweets;
-    }
-
-    /**
-     * Insert a Tweet with the user who belongs the tweet
-     *
-     * @param object $_tweet;
-     *
-     * @return Tweet
-     */
-    private function insert($_tweet)
-    {
-        $this->_fieldsMappedToDB = array('tweetId'=>'id', 'text'=>'text', 'source'=>'source', 'truncated'=>'truncated', 'favorited'=>'favorited', 'retweetet'=>'retweeted', 'lang' => 'lang', 'retweetCount'=>'retweet_count', 'favoriteCount'=>'favorite_count');
-        $this->entityClass = 'Tweet';
-
-        $tweet = $this->isEntityExists($_tweet->id, 'TweetId');
-
-        $tweet->setCreatedAt(new \DateTime(date( 'Y-m-d H:i:s', str_replace("+0000",'',strtotime($_tweet->created_at))) ));
-        $tweet = $this->mapObjectToEntity($tweet, $_tweet);
-
-        $user = $this->_createUser($_tweet->user);
-        $tweet->setUser($user);
-
-        if(isset($_tweet->retweeted_status))
-        {
-            $fromRetweet = $this->insert($_tweet->retweeted_status);
-            $tweet->setRetweet($fromRetweet);
-        }
-
-        $this->em->persist($tweet);
-        $this->em->flush();
-
-        if(isset($_tweet->entities->media))
-            $this->_createMedia($_tweet->entities->media, $tweet);
-
-        if(isset($_tweet->entities->hashtags))
-            $this->_createTags($_tweet->entities->hashtags, $tweet);
-
-        if($_tweet->place)
-            $this->_createPlace($_tweet->place, $tweet);
-
-        $this->em->flush();
-
-        return $tweet;
-    }
-
-
-    /**
-     * Create user
-     *
-     * @param object $_user;
-     *
-     * @return User user
-     */
-    private function _createUser($_user)
-    {
-        $this->_fieldsMappedToDB    = array('userId' => 'id', 'name'=>'name', 'screenName'=>'screen_name', 'location'=>'location',
-                                            'description'=>'description','url'=>'url','FollowersCount'=>'followers_count', 'FriendsCount'=>'friends_count',
-                                            'listedCount'=>'listed_count', 'TimeZone'=>'time_zone', 'ProfileBackgroundImageUrl'=>'profile_background_image_url',
-                                            'ProfileImageUrl'=>'profile_image_url');
-
-        $this->entityClass          = 'Users';
-        $twitterUser                = $this->isEntityExists($_user->id, 'UserId');
-        $twitterUser                = $this->mapObjectToEntity($twitterUser, $_user);
-
-        $twitterUser->setCreatedAt(new \DateTime(date( 'Y-m-d H:i:s', str_replace("+0000",'',strtotime($_user->created_at))) ));
-
-        $this->em->persist($twitterUser);
-        $this->em->flush();
-
-        return $twitterUser;
-    }
-
-    /**
-     * Create Media
-     *
-     * @param array $_medias Array of media ids;
-     *
-     * @return true
-     */
-    private function _createMedia($_medias, $tweet)
-    {
-        $this->entityClass = 'TweetMediaUrls';
-        $this->_fieldsMappedToDB = array('MediaUrl'=>'media_url', 'MediaId'=>'id', 'DisplayUrl'=>'display_url', 'Type'=>'type');
-
-        foreach($_medias as $_media)
-        {
-            $media = $this->isEntityExists($_media->id, 'mediaId');
-            $media = $this->mapObjectToEntity($media, $_media);
-
-            $media->setTweet($tweet);
-
-            $this->em->persist($media);
-        }
-
-        $this->em->flush();
-
-        return true;
-    }
-
-    /**
-     * Create Tags
-     *
-     * @param array $_tags Array of tags;
-     *
-     * @return true
-     */
-    private function _createTags($_tags, $tweet)
-    {
-        $this->entityClass = 'TweetTags';
-        $this->_fieldsMappedToDB = array('text'=>'text');
-
-        foreach($_tags as $_tag)
-        {
-            $tag = $this->isEntityExists($_tag->text, 'text');
-            $tag = $this->mapObjectToEntity($tag, $_tag);
-
-            $tweet->addTag($tag);
-
-            $this->em->persist($tweet);
-            $this->em->persist($tag);
-
-
-            $tweet->addTag($tag);
-        }
-
-        $this->em->flush();
-
-        return true;
-    }
-
-
-    /**
-     * Create a Place on table twitter
-     *
-     * @return TweetPlace
-     */
-    private function _createPlace($_place, $tweet)
-    {
-        $this->entityClass = 'TweetPlace';
-        $this->_fieldsMappedToDB = array('placeId'=>'id','url'=>'url','PlaceType'=>'place_type','name'=>'name', 'fullName'=>'full_name','countryCode'=>'country_code','country' => 'country');
-
-        $place = $this->isEntityExists($_place->id, 'PlaceId');
-        $place = $this->mapObjectToEntity($place, $_place);
-
-        $place->setTweet($tweet);
-
-        $this->em->persist($place);
-        $this->em->flush();
-
-        return $place;
-    }
-
-    /**
-     * Check if errors for connections
-     *
-     * @param null $data
-     * @throws \Exception|\InvalidArgumentException
-     */
-    private function _checkErrorsConnections($data = null)
-    {
-        if(!$this->oauth_access_token)
-            throw new \InvalidArgumentException('No Twitter Key  @t headoo_media_social_api.twitter_access.oauth_access_token in your config.yml');
-
-        if(!$this->oauth_access_token_secret)
-            throw new \InvalidArgumentException('No Twitter Key  @t headoo_media_social_api.twitter_access.oauth_access_token_secret in your config.yml');
-
-        if(!$this->consumer_key)
-            throw new \InvalidArgumentException('No Twitter Key  @t headoo_media_social_api.twitter_access.consumer_key in your config.yml');
-
-        if(!$this->consumer_secret)
-            throw new \InvalidArgumentException('No Twitter Key  @t headoo_media_social_api.twitter_access.consumer_secret in your config.yml');
-
-        if($data && isset($data->errors) && count($data->errors) > 0)
-            throw new \Exception('code error:' . $data->errors[0]->code. ':' . $data->errors[0]->message);
-    }
-
 
     /**
      * Search tweet with url next !
@@ -552,9 +361,24 @@ class TweetManager extends GenericManager
         if(isset($tweets->search_metadata->next_results)) {
             $data['next_url'] = $tweets->search_metadata->next_results;
         }
-        $data['medias'] = isset($tweets->statuses) ? $this->insertMultiple($tweets->statuses) : array();
 
         return $data;
     }
 
+    public function testPrivateGetTweetsList($settings, $getField) {
+
+        if(!is_array($settings) or empty($settings)) {
+            throw new \InvalidArgumentException("settings not an filled array");
+        }
+
+        if(!is_string($getField) or empty($getField)) {
+            throw new \InvalidArgumentException("getField not an filled string");
+        }
+
+
+        return $this->getTweetsList($settings, $getField);
+    }
 }
+
+
+    
