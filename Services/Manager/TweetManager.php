@@ -182,9 +182,14 @@ class TweetManager extends GenericManager
         if(mb_strlen($urlToSearch) > 1000) {
             throw new \InvalidArgumentException('The given URL ("' . $urlToSearch . '") is more than 1000 chars long!');
         }
+		/* why limit to URL ? At @headoo, we will search with access_token only 
+
         if(!filter_var($urlToSearch, FILTER_VALIDATE_URL)) {
             throw new \InvalidArgumentException('The given URL ("' . $urlToSearch . '") is invalid!');
         }
+        
+        */
+        
         $this->setMaxTweets($number);
 
         $getfield = '?q=' . $urlToSearch .  '&count=' . $this->numberTweet;
